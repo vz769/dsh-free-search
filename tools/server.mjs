@@ -18,14 +18,14 @@ function readCurrentEngine() {
 
 function writeEngine(engine) {
   if (!existsSync(PATCH_FILE)) {
-    throw new Error(`配置文件不存在: ${PATCH_FILE}`);
+    throw new Error(`Config file not found: ${PATCH_FILE}`);
   }
   let content = readFileSync(PATCH_FILE, "utf8");
   const re = /^(\s*- id: web\r?\n\s*config:\r?\n\s*searchProvider: )[^\r\n]*/m;
   if (re.test(content)) {
     content = content.replace(re, `$1${engine}`);
   } else {
-    content += `\n# ============================================================\n# 搜索引擎 provider（由 dsh-free-search 切换工具写入）\n# ============================================================\n- id: web\n  config:\n    searchProvider: ${engine}\n`;
+    content += `\n# ============================================================\n# search engine provider (written by the dsh-free-search switcher)\n# ============================================================\n- id: web\n  config:\n    searchProvider: ${engine}\n`;
   }
   writeFileSync(PATCH_FILE, content, "utf8");
 }
@@ -49,7 +49,7 @@ const server = http.createServer(async (req, res) => {
       const { engine } = JSON.parse(body || "{}");
       if (!ENGINES.includes(engine)) {
         res.writeHead(400, { "content-type": "application/json" });
-        res.end(JSON.stringify({ ok: false, error: `未知引擎: ${engine}` }));
+        res.end(JSON.stringify({ ok: false, error: `Unknown engine: ${engine}` }));
         return;
       }
       writeEngine(engine);
@@ -66,6 +66,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`DSH 搜索引擎切换器已启动: http://127.0.0.1:${PORT}`);
-  console.log("按 Ctrl+C 关闭");
+  console.log(`DSH search engine switcher started: http://127.0.0.1:${PORT}`);
+  console.log("Press Ctrl+C to stop");
 });

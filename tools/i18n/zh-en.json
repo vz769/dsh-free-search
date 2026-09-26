@@ -1,0 +1,928 @@
+{
+  "meta": {
+    "upstream": "DDDMUC/dsh-free-search",
+    "basedOn": "v0.4.39 (upstream master 424bd413)",
+    "generated": "2026-09-26",
+    "note": "Exact-string Chinese->English replacements for the English fork. Applied by translate.mjs; entries that no longer match mean upstream rewrote that line."
+  },
+  "pairs": [
+    [
+      "// 语言 → Bing 本地化档案：{ market, acceptLang }。",
+      "// Language → Bing localization profile: { market, acceptLang }."
+    ],
+    [
+      "// lang 字段（设置页可切换）驱动 Bing 的 mkt + Accept-Language，让非中文用户",
+      "// The lang field drives Bing's mkt + Accept-Language so non-Chinese users"
+    ],
+    [
+      "// 也能拿到本地化结果（俄语搜俄文等）。bingMarket 显式设置时优先于映射。",
+      "// also get localized results (Cyrillic queries → Russian results, etc.). An explicit bingMarket wins over the mapping."
+    ],
+    [
+      "// market → 语言（bingMarket 显式设置时反推 accept-language，避免中文优先 header 污染）",
+      "// market → language (when bingMarket is set explicitly we derive accept-language from it, avoiding a Chinese-first header)"
+    ],
+    [
+      "// 当前插件版本（发布时与 package.json 同步）",
+      "// Current plugin version (kept in sync with package.json at release time)"
+    ],
+    [
+      "// 检查更新的 npm registry 元数据地址（dsh-free-search 是 npmjs 上的公开包）",
+      "// npm registry metadata URL for update checks (dsh-free-search is a public package on npmjs)"
+    ],
+    [
+      "// 查询 npm registry 的最新版本；失败时返回 null（网络/代理问题不阻塞设置页）",
+      "// Queries the npm registry for the latest version; returns null on failure (network/proxy problems must not block the settings page)"
+    ],
+    [
+      "// 简单的 semver 比较（仅处理 x.y.z 主/次/补丁，忽略预发布标签）；a>b 返回 1, a<b 返回 -1, 相等返回 0",
+      "// Simple semver comparison (x.y.z major/minor/patch only, prerelease tags ignored); returns 1 when a > b, -1 when a < b, 0 when equal"
+    ],
+    [
+      "// 检测插件的安装模式：遍历 profiles/*/node_modules/dsh-free-search，",
+      "// Detects the plugin install mode: scans profiles/*/node_modules/dsh-free-search,"
+    ],
+    [
+      "// symlink（link: 本地开发）→ isLink=true；npm 真安装 → isLink=false；找不到 → null",
+      "// a symlink (link: local dev) → isLink=true; a real npm install → isLink=false; not found → null"
+    ],
+    [
+      "// time_range 支持：固定档 day/week/month/year，或自定义（相对 12h/3d/2mo/1y、绝对 YYYY-MM-DD）",
+      "// time_range support: fixed tiers day/week/month/year, or custom (relative 12h/3d/2mo/1y, absolute YYYY-MM-DD)"
+    ],
+    [
+      "// 把用户/agent 给的 timeRange 解析成统一对象：{ days } 相对天数，或 { after } 绝对日期。",
+      "// Parses a user/agent timeRange into a unified object: { days } for a relative window, or { after } for an absolute date."
+    ],
+    [
+      "// 输入支持：day/week/month/year、12h/3d/2mo/1y、2026-07-01，或已解析的 {days}/{after} 对象。",
+      "// Accepted input: day/week/month/year, 12h/3d/2mo/1y, 2026-07-01, or an already parsed {days}/{after} object."
+    ],
+    [
+      "// 无效返回 undefined。",
+      "// Invalid input returns undefined."
+    ],
+    [
+      "  // 已解析对象：直接透传",
+      "  // Already parsed object: pass through"
+    ],
+    [
+      "// 把自定义天数映射到只支持固定档的引擎（Tavily / SearXNG / DDG）的最近似档位",
+      "// Maps custom day counts to the nearest tier for engines that only support fixed tiers (Tavily / SearXNG / DDG)"
+    ],
+    [
+      "//#region 结果缓存（防限流/省额度，LRU 50 条，TTL 可配置 0-5 分钟）",
+      "//#region result cache (anti rate-limit / quota saver, LRU 50 entries, TTL configurable 0-5 minutes)"
+    ],
+    [
+      "// fallback 条目（实际引擎 ≠ 首选引擎时）TTL = 配置 TTL 的 1/5（默认 5 分钟 → 60s）：",
+      "// Fallback entries (actual engine != preferred engine) use TTL = configured TTL / 5 (5 min default → 60s):"
+    ],
+    [
+      "// 首选引擎恢复后最多 1 分钟即可拿到新结果，避免回退结果被完整 TTL 钉死；首选成功条目仍用完整 TTL。",
+      "// once the preferred engine recovers, fresh results arrive within a minute instead of being pinned by the full TTL; successful preferred-engine entries still use the full TTL."
+    ],
+    [
+      "// 统一的 snippet 清洗：剔除登录/付费墙/订阅等噪音短语，折叠空白，限制长度。",
+      "// Unified snippet cleanup: strips login/paywall/subscribe noise, collapses whitespace, caps length."
+    ],
+    [
+      "// 只在回退链出口统一应用，各引擎内部不做，避免重复处理。",
+      "// Applied once at the fallback-chain exit, not inside each engine, to avoid double processing."
+    ],
+    [
+      "// 提示注入防护：插件自有工具（advanced_search / platform_search / free_search_test）的",
+      "// Prompt-injection guard: web-derived text returned by the plugin's own tools"
+    ],
+    [
+      "// 网页来源文本统一包进显式「不可信数据」边界，配合系统提示词里的同名说明使用。",
+      "// (advanced_search / platform_search / free_search_test) is wrapped in an explicit untrusted-data boundary that matches the system-prompt note."
+    ],
+    [
+      "// 核心 web_search / web_fetch 由 DSH 核心自带 EXTERNAL_WEB_CONTENT_NOTICE，不在此重复；",
+      "// core web_search / web_fetch already carry DSH core's EXTERNAL_WEB_CONTENT_NOTICE, so it is not duplicated here;"
+    ],
+    [
+      "// 也不给 source.snippet 本体加标记——同一字符串会原样显示在 DSH 前端的结果卡片里。",
+      "// and source.snippet itself is left untagged - the same string is rendered verbatim in DSH's result cards."
+    ],
+    [
+      "// 防伪造：剥掉网页文本里自带的同名边界标记，避免提前闭合边界",
+      "// Anti-spoofing: strips look-alike boundary tags found inside page text so the boundary cannot be closed early"
+    ],
+    [
+      "  // 单次请求超时 12s，避免挂起被当成 Connection error",
+      "  // 12s per-request timeout so a hang is not reported as a connection error"
+    ],
+    [
+      "  // DuckDuckGo 反爬验证页检测（HTTP 202 或验证关键字）",
+      "  // DuckDuckGo anti-bot challenge page detection (HTTP 202 or challenge keywords)"
+    ],
+    [
+      "// 带重试的抓取：网络错误/空结果时重试，间隔 1.5s，最多 3 次",
+      "// Fetch with retries: retries on network errors / empty results, 1.5s apart, up to 3 attempts"
+    ],
+    [
+      "  // DDG 安全搜索：off(adlt=-1) / moderate(adlt=0) / strict(adlt=1)",
+      "  // DDG safe search: off (adlt=-1) / moderate (adlt=0) / strict (adlt=1)"
+    ],
+    [
+      "  // DDG 时间过滤：df=d/w/m/y（只支持固定档，自定义取近似档）",
+      "  // DDG time filter: df=d/w/m/y (fixed tiers only; custom windows snap to the nearest tier)"
+    ],
+    [
+      "  // DDG Lite 同样支持 df 时间过滤",
+      "  // DDG Lite supports the same df time filter"
+    ],
+    [
+      "// Bing 在「查询无结果」时会返回一张完全无关的缓存 SERP（<li class=\"b_algo\"> 照常存在，",
+      "// When a query has no results Bing returns an unrelated cached SERP (the <li class=\"b_algo\"> markup"
+    ],
+    [
+      "// 但内容是别的查询/热门页的内容），直接返回等于把垃圾结果喂给模型（issue #38：YouTube、",
+      "// is still there, but the content belongs to another query or a trending page). Returning it would feed"
+    ],
+    [
+      "// 法语微软文档、瑞士基金等都复现过）。这里用「查询 token 与结果文本是否重叠」识别这种页面。",
+      "// junk to the model (issue #38: YouTube, French Microsoft docs, Swiss funds, etc.). We detect such pages by"
+    ],
+    [
+      "// token 规则：CJK 取 1-2 字组合（二元组），拉丁/数字取长度 >=2 的词。",
+      "// checking whether query tokens overlap the result text. Token rule: CJK → 1-2 character bigrams, Latin/digits → words of length >= 2."
+    ],
+    [
+      "  if (tokens.length === 0) return true; // 纯符号查询无法判定，不拦截",
+      "  if (tokens.length === 0) return true; // symbol-only query: cannot judge, do not block"
+    ],
+    [
+      "  // mkt：显式 bingMarket 优先；否则按 lang 映射（zh→zh-CN, ru→ru-RU ...）",
+      "  // mkt: explicit bingMarket wins; otherwise map from lang (zh→zh-CN, ru→ru-RU, ...)"
+    ],
+    [
+      "  // Accept-Language：显式 bingMarket 时按 market 反推（避免中文 header 污染），否则用 lang 档案",
+      "  // Accept-Language: derived from an explicit bingMarket (avoiding a Chinese-first header), otherwise from the lang profile"
+    ],
+    [
+      "  // Bing 无结果时会返回无关的缓存页：判为 0 结果，交给统一回退链换下一个引擎",
+      "  // Bing returns an unrelated cached page when empty: treated as 0 results and handed to the fallback chain"
+    ],
+    [
+      "  // 聚合所有实例的失败原因，避免只显示最后一个实例的错误",
+      "  // Aggregate failures from every instance instead of showing only the last one"
+    ],
+    [
+      "      // SearXNG 原生支持 time_range 过滤（只支持固定档，自定义取近似档）",
+      "      // SearXNG natively supports time_range (fixed tiers only; custom windows snap to the nearest tier)"
+    ],
+    [
+      "  // 空实例列表兜底：避免 \"all SearXNG instances failed: \" 尾巴悬空",
+      "  // Empty instance list fallback: avoids a dangling \"all SearXNG instances failed: \" tail"
+    ],
+    [
+      "  // Note 会引用这个错误消息，截断避免 6 实例全挂时刷屏",
+      "  // The Note quotes this error message, so it is truncated to avoid flooding when all 6 instances fail"
+    ],
+    [
+      "// AnySearch: 免费匿名额度（无 key），可选 Bearer key 提额；结构化 JSON 结果",
+      "// AnySearch: free anonymous quota (no key), optional Bearer key for more quota; structured JSON results"
+    ],
+    [
+      "// 401/403：本进程忽略该 key 值（不删除存储），改回匿名免费；不自动清空用户配置",
+      "// 401/403: this process ignores that key value (without deleting it from storage) and falls back to anonymous; user config is never wiped automatically"
+    ],
+    [
+      "const ANYSEARCH_KEY_INVALID_NOTE = \"AnySearch key 无效，本次已忽略该 key，改回免费匿名\";",
+      "const ANYSEARCH_KEY_INVALID_NOTE = \"AnySearch key invalid; ignored for this request, fell back to the free anonymous quota\";"
+    ],
+    [
+      "  // 本进程已判定无效的 key 不再发送；若配置里仍有该值，结果仍带忽略提示",
+      "  // A key already judged invalid in this process is no longer sent; if it is still configured, results keep the ignored-key note"
+    ],
+    [
+      "// Exa MCP: 匿名公开 MCP（无 key），web_search_exa 工具",
+      "// Exa MCP: anonymous public MCP (no key), web_search_exa tool"
+    ],
+    [
+      "  // 解析 SSE 格式：event: message\\ndata: {...}",
+      "  // Parse the SSE format: event: message\\ndata: {...}"
+    ],
+    [
+      "  // 解析 \"Title: X\\nURL: Y\\nPublished: Z\\nHighlights:\\n...\"",
+      "  // Parse \"Title: X\\nURL: Y\\nPublished: Z\\nHighlights:\\n...\""
+    ],
+    [
+      "      // 只保留日期形态（ISO 或 YYYY-MM-DD），过滤 \"N/A\" 等占位符",
+      "      // Keep date-shaped values only (ISO or YYYY-MM-DD); filter out placeholders such as \"N/A\""
+    ],
+    [
+      "        // 有外链用外链，纯讨论帖用 HN 讨论页",
+      "        // Use the external link when present, otherwise the HN discussion page"
+    ],
+    [
+      "      // snippet 含 <span class=\"searchmatch\"> 高亮标签，剥掉",
+      "      // snippets contain <span class=\"searchmatch\"> highlight tags: strip them"
+    ],
+    [
+      "  // Exa 时间过滤：startPublishedDate（ISO 日期；支持任意天数和绝对日期）",
+      "  // Exa time filter: startPublishedDate (ISO date; supports any day count and absolute dates)"
+    ],
+    [
+      "// Tavily: 无 key 走 keyless（免费匿名额度），有 key 走账号档（Bearer）",
+      "// Tavily: without a key uses keyless (free anonymous quota), with a key uses the account tier (Bearer)"
+    ],
+    [
+      "    // Tavily 时间过滤：time_range 只支持固定档，自定义天数取最近似档位",
+      "    // Tavily time filter: time_range supports fixed tiers only; custom day counts snap to the nearest tier"
+    ],
+    [
+      "// Firecrawl: 无 key 走 keyless（官方免 key 匿名额度），有 key 走账号档（Bearer）",
+      "// Firecrawl: without a key uses keyless (official anonymous quota), with a key uses the account tier (Bearer)"
+    ],
+    [
+      "// Firecrawl 自定义绝对日期 → Google tbs 语法（cd_min 用 M/D/YYYY）",
+      "// Firecrawl custom absolute dates → Google tbs syntax (cd_min uses M/D/YYYY)"
+    ],
+    [
+      "    // Firecrawl 时间过滤：tbs 支持固定档（qdr:d/w/m/y）与自定义绝对区间（cdr:1,cd_min:...）",
+      "    // Firecrawl time filter: tbs supports fixed tiers (qdr:d/w/m/y) and custom absolute ranges (cdr:1,cd_min:...)"
+    ],
+    [
+      "// Parallel: 有 key 走 REST（x-api-key）；无 key 走官方 MCP 免 key。自然语言 objective + search_queries，返回带 excerpts 的结果",
+      "// Parallel: with a key uses REST (x-api-key); without a key uses the official keyless MCP. Natural-language objective + search_queries, returns results with excerpts"
+    ],
+    [
+      "    // Parallel 时间过滤：source_policy.after_date（YYYY-MM-DD，精确）",
+      "    // Parallel time filter: source_policy.after_date (YYYY-MM-DD, precise)"
+    ],
+    [
+      "// Parallel keyless：官方 MCP（search.parallel.ai/mcp）匿名额度，无需 API key。",
+      "// Parallel keyless: official MCP (search.parallel.ai/mcp) anonymous quota, no API key needed."
+    ],
+    [
+      "// 与 REST 的差异：MCP 的 web_search 工具没有 max_results / after_date 参数",
+      "// Difference from REST: the MCP web_search tool has no max_results / after_date parameters"
+    ],
+    [
+      "// （条数由服务端决定），时间过滤退化为 objective 里的新鲜度提示（软过滤）。",
+      "// (the server decides the count), so time filtering degrades to a freshness hint inside the objective (soft filter)."
+    ],
+    [
+      "  // 兼容 JSON 与 SSE（event: message\\ndata: {...}）两种响应形态",
+      "  // Accepts both JSON and SSE (event: message\\ndata: {...}) response shapes"
+    ],
+    [
+      "// 把任意天数转成 Keenable 的相对时间格式（12h / Nd / Nmo / Ny）",
+      "// Converts any day count into Keenable's relative time format (12h / Nd / Nmo / Ny)"
+    ],
+    [
+      "// Keenable: 有 key 走 REST API（X-API-Key），无 key 走 keyless MCP（免费匿名额度）",
+      "// Keenable: with a key uses the REST API (X-API-Key), without a key uses the keyless MCP (free anonymous quota)"
+    ],
+    [
+      "      // 与 Exa MCP 一致：只保留日期形态，过滤 \"N/A\" 等占位符",
+      "      // Same as Exa MCP: keep date-shaped values only, filter out placeholders such as \"N/A\""
+    ],
+    [
+      "    // Keenable 时间过滤：published_after（相对 12h/7d/1mo/1y 或绝对 YYYY-MM-DD）",
+      "    // Keenable time filter: published_after (relative 12h/7d/1mo/1y or absolute YYYY-MM-DD)"
+    ],
+    [
+      "    // Keenable MCP 支持 published_after（相对或绝对日期）",
+      "    // Keenable MCP supports published_after (relative or absolute date)"
+    ],
+    [
+      "  // isError=true 时 content 里是错误文本",
+      "  // When isError=true the content holds the error text"
+    ],
+    [
+      "  // 内置 20s 超时（与外部 signal 组合）：调用方不传 signal 时也不会永久卡住",
+      "  // Built-in 20s timeout (combined with any external signal): never hangs forever when the caller passes no signal"
+    ],
+    [
+      "// SerpBase: 必须配置 SERPBASE_API_KEY（无 key 跳过，同 perplexity）",
+      "// SerpBase: SERPBASE_API_KEY is required (skipped without a key, like perplexity)"
+    ],
+    [
+      "// Google SERP API：POST + X-API-Key 头，返回 organic[]（title/link/snippet/published_at）。",
+      "// Google SERP API: POST + X-API-Key header, returns organic[] (title/link/snippet/published_at)."
+    ],
+    [
+      "// 注意：SerpBase 始终返回 HTTP 200，业务状态放在 JSON 的 status 字段（0=成功，1001=key 无效/缺失，1000=请求非法）。",
+      "// Note: SerpBase always returns HTTP 200; the business status lives in the JSON status field (0=success, 1001=invalid/missing key, 1000=invalid request)."
+    ],
+    [
+      "  // hl/gl 跟随设置页的 lang（SerpBase 支持 Google 的 hl/gl 本地化），默认 en/us",
+      "  // hl/gl follow the lang setting (SerpBase supports Google's hl/gl localization); defaults to en/us"
+    ],
+    [
+      "  // HTTP 200 + status 字段：0 成功 / 1001 key 无效或缺 / 1000 请求非法",
+      "  // HTTP 200 + status field: 0 success / 1001 invalid or missing key / 1000 invalid request"
+    ],
+    [
+      "          // 可一键升级：npm 真安装时 true；本地 link 开发模式 false（升级请 git pull 源码）",
+      "          // One-click upgrade available: true for a real npm install; false in local link dev mode (use git pull on the source)"
+    ],
+    [
+      "    // 一键升级：仅在 npm 真安装模式下执行 pnpm 升级；link 模式拒绝（避免破坏本地开发链路）",
+      "    // One-click upgrade: runs pnpm only for a real npm install; refused in link mode to avoid breaking the local dev chain"
+    ],
+    [
+      "      // 指定 engine：直测该引擎本身（不走回退链），报告它自己的可用性",
+      "      // engine given: test that engine directly (no fallback chain) and report its own availability"
+    ],
+    [
+      "            // 实际使用的引擎：provider.search 在成功时返回 provider 字段",
+      "            // Engine actually used: provider.search returns a provider field on success"
+    ],
+    [
+      "            // 缓存命中标记：provider.search 成功路径标记 _cache（hit=命中缓存，miss=真实搜索）",
+      "            // Cache marker: the provider.search success path sets _cache (hit=cached, miss=real search)"
+    ],
+    [
+      "        // 设置页保存了 AnySearch key：允许下次再试（不删除存储，仅解除本进程忽略）",
+      "        // An AnySearch key was saved from the settings page: allow a retry next time (storage untouched, only the in-process ignore is lifted)"
+    ],
+    [
+      "    // 凭据中心：查询各引擎 key 的配置状态（value 不返回，只返回是否已配置）",
+      "    // Credential center: query the configured state of each engine key (values are not returned, only whether they are set)"
+    ],
+    [
+      "    // 凭据中心：写入一个引擎 key（ref 白名单限定）",
+      "    // Credential center: write one engine key (restricted to the ref allowlist)"
+    ],
+    [
+      "        // 用户写入新 AnySearch key：允许下次请求再试（仅忽略同值坏 key，不删除存储）",
+      "        // A new AnySearch key was written: allow a retry on the next request (only the same bad value stays ignored; storage untouched)"
+    ],
+    [
+      "    // 凭据中心：删除一个引擎 key",
+      "    // Credential center: delete one engine key"
+    ],
+    [
+      "// 引擎 key 与凭据中心 ref 的映射（白名单：只允许这些 ref 被 UI 读写凭据中心）",
+      "// Engine key → credential-center ref mapping (allowlist: only these refs may be read/written through the UI)"
+    ],
+    [
+      "  cache: z.boolean().default(true).volatile(), // 单 query 结果缓存开关（防限流/省额度）",
+      "  cache: z.boolean().default(true).volatile(), // per-query result cache toggle (anti rate-limit / quota saver)"
+    ],
+    [
+      "  cacheTtl: z.number().default(5).volatile(), // 缓存时长（分钟），0-5 可配置（使用处再 clamp）",
+      "  cacheTtl: z.number().default(5).volatile(), // cache TTL in minutes, configurable 0-5 (clamped at the use site)"
+    ],
+    [
+      "  keyStorage: z.string().default(\"credentials\").volatile(), // key 存储位置：credentials（凭据中心）| settings（设置页）",
+      "  keyStorage: z.string().default(\"credentials\").volatile(), // key storage: credentials (credential center) | settings (settings page)"
+    ],
+    [
+      "  // credentials 服务可能晚于本插件挂载（跨 bundle 顺序），运行期动态获取而不是 apply 时缓存",
+      "  // The credentials service may mount after this plugin (cross-bundle ordering), so it is resolved at runtime instead of cached in apply"
+    ],
+    [
+      "  // 系统提示词动态刷新：设置变更时重新生成，避免显示旧引擎",
+      "  // Dynamic system-prompt refresh: regenerated on settings changes so a stale engine is never shown"
+    ],
+    [
+      "  // 单 query 结果缓存（provider.search 内闭包持有）：LRU 50 条 / TTL 可配置",
+      "  // Per-query result cache (held in a closure inside provider.search): LRU 50 entries / configurable TTL"
+    ],
+    [
+      "  // key 优先级：credentials（.credentials.yaml 凭据中心，官方推荐）> settings 的 free-search.<x>ApiKey（遗留兼容）> 环境变量",
+      "  // Key precedence: credentials (.credentials.yaml credential center, officially recommended) > settings free-search.<x>ApiKey (legacy) > environment variables"
+    ],
+    [
+      "  // 总控 provider：按 settings 的 provider 字段路由到任意引擎。",
+      "  // Master provider: routes to any engine based on the settings provider field."
+    ],
+    [
+      "  // 任何引擎失败（缺 key / 401 / 限流 / 网络）都会自动轮流尝试下一个引擎，",
+      "  // Any engine failure (missing key / 401 / rate limit / network) automatically tries the next engine"
+    ],
+    [
+      "  // 直到成功或全部失败。并在结果里附带回退提示，避免 agent 搜索直接失败。",
+      "  // until one succeeds or all fail, attaching a fallback note so the agent's search never fails outright."
+    ],
+    [
+      "    // 单 query 结果缓存：key=query+maxResults+timeRangeLabel+preferred，Map 天然 LRU",
+      "    // Per-query result cache: key = query+maxResults+timeRangeLabel+preferred; a Map is naturally LRU"
+    ],
+    [
+      "      // 公共咽喉校验：web_search / advanced_search / raw-search 三条路径都经过这里",
+      "      // Shared chokepoint validation: the web_search / advanced_search / raw-search paths all pass through here"
+    ],
+    [
+      "      // 首选引擎：free_search 工具显式指定（request.engine）优先于设置（cfg.provider）",
+      "      // Preferred engine: an explicit request.engine from the tools wins over the cfg.provider setting"
+    ],
+    [
+      "      // time_range 过滤（仅 advanced_search 工具透传；标准 web_search 无此参数）",
+      "      // time_range filter (passed through by the advanced_search tool only; plain web_search has no such parameter)"
+    ],
+    [
+      "      // 保留原始字符串用于 Note 展示；raw-search 桥可能已把 timeRange 解析成对象",
+      "      // Keep the raw string for the Note; the raw-search bridge may already have parsed timeRange into an object"
+    ],
+    [
+      "      // 缓存 TTL（分钟，0-5 可配置）；cache=false 或 ttl<=0 时完全禁用",
+      "      // Cache TTL in minutes (configurable 0-5); fully disabled when cache=false or ttl<=0"
+    ],
+    [
+      "          // 浅拷贝 + 私有标记：sources 数组也复制一层，彻底隔离缓存对象（调用方 push/改元素不影响缓存）",
+      "          // Shallow copy + private marker: the sources array is copied too, fully isolating the cached object (caller push/mutation cannot affect it)"
+    ],
+    [
+      "      // 统一引擎链：首选优先，然后其他付费引擎（有 key 的优先尝试），最后免费引擎",
+      "      // Unified engine chain: preferred first, then other paid engines (ones with a key first), then free engines"
+    ],
+    [
+      "      // 支持 time_range 过滤的引擎：tavily / exa / keenable / firecrawl / parallel / searxng / ddg / ddg-lite",
+      "      // Engines supporting time_range filtering: tavily / exa / keenable / firecrawl / parallel / searxng / ddg / ddg-lite"
+    ],
+    [
+      "      // 首选引擎被跳过的原因（用于生成准确的 Note，避免误导 agent/用户）：",
+      "      // Why the preferred engine was skipped (used to build an accurate Note and avoid misleading the agent/user):"
+    ],
+    [
+      "      //  - \"time-filter\"：带 timeRange 且首选引擎不支持时间过滤（根本没尝试）",
+      "      //  - \"time-filter\": a timeRange was given and the preferred engine does not support time filtering (never attempted)"
+    ],
+    [
+      "      //  - \"failed\"：首选引擎确实被尝试但失败（缺 key / 401 / 限流 / 0 结果 / 网络）",
+      "      //  - \"failed\": the preferred engine was attempted and failed (missing key / 401 / rate limit / 0 results / network)"
+    ],
+    [
+      "      //  - null：首选引擎成功或无回退",
+      "      //  - null: the preferred engine succeeded, or there was no fallback"
+    ],
+    [
+      "        // 有时间过滤需求时，把支持过滤的引擎排前面（首选引擎若支持仍优先）",
+      "        // With a time filter requested, move filtering-capable engines to the front (the preferred engine stays first if it qualifies)"
+    ],
+    [
+      "          // 首选引擎不支持时间过滤 → 它不在链里，不会被尝试（这不等于失败）",
+      "          // The preferred engine does not support time filtering → it is not in the chain and is never attempted (this is not a failure)"
+    ],
+    [
+      "      // 首选引擎若被尝试后失败，记录失败详情（用于 Note）",
+      "      // If the preferred engine was attempted and failed, record the failure detail (for the Note)"
+    ],
+    [
+      "      // 总超时预算：串行回退时限制整条引擎链的总时长，防止各引擎超时累加达分钟级",
+      "      // Total timeout budget: caps the whole serial fallback chain so per-engine timeouts cannot add up to minutes"
+    ],
+    [
+      "        // 组合外部取消 signal + 剩余预算超时：官方 web_search 取消、引擎超时、总预算都能触发",
+      "        // Combines the external abort signal with the remaining budget: core web_search cancellation, engine timeouts and the total budget all trigger it"
+    ],
+    [
+      "            // exa：有 key 走 REST，无 key 走 keyless MCP（免费）",
+      "            // exa: with a key uses REST, without a key uses the keyless MCP (free)"
+    ],
+    [
+      "            // tavily：有 key 走账号档，无 key 走 keyless（免费匿名额度）",
+      "            // tavily: with a key uses the account tier, without a key uses keyless (free anonymous quota)"
+    ],
+    [
+      "            // keenable：有 key 走 REST，无 key 走 keyless MCP（免费）",
+      "            // keenable: with a key uses REST, without a key uses the keyless MCP (free)"
+    ],
+    [
+      "            // firecrawl：无 key 也可用（官方免 key 匿名额度），有 key 走账号档（更高限额）",
+      "            // firecrawl: works without a key too (official anonymous quota); with a key uses the account tier (higher limits)"
+    ],
+    [
+      "            // parallel：有 key 走 REST（支持 after_date 精确过滤），无 key 走 keyless MCP（免费匿名额度）",
+      "            // parallel: with a key uses REST (precise after_date filtering), without a key uses the keyless MCP (free anonymous quota)"
+    ],
+    [
+      "              continue; // 无 key 跳过",
+      "              continue; // no key: skip"
+    ],
+    [
+      "            // serpbase：必须配置 SERPBASE_API_KEY（无 key 跳过，同 perplexity）",
+      "            // serpbase: SERPBASE_API_KEY is required (skipped without a key, like perplexity)"
+    ],
+    [
+      "            // 统一清洗 snippet：去登录/付费墙/订阅噪音，折叠空白（有值的才处理，保持 lossless JSON）",
+      "            // Unified snippet cleanup: strips login/paywall/subscribe noise and collapses whitespace (only set values are processed to keep the JSON lossless)"
+    ],
+    [
+      "            // 用了非首选引擎时，在结果里附上准确提示（区分\"不支持时间过滤被跳过\"与\"真实失败\"）",
+      "            // When a non-preferred engine served the results, attach an accurate note (distinguishing \"skipped: no time-filter support\" from \"really failed\")"
+    ],
+    [
+      "            // 写入缓存（只缓存成功结果，失败走 throw 天然不缓存）",
+      "            // Write to cache (successful results only; failures throw and are never cached)"
+    ],
+    [
+      "              // fallback 条目（实际引擎≠首选）用配置 TTL 的 1/5，首选成功保持完整 TTL",
+      "              // Fallback entries (actual engine != preferred) use configured TTL / 5; preferred successes keep the full TTL"
+    ],
+    [
+      "  // 运行时兜底：DSH 0.1.1+ 中 profile patch 的 config 会整体覆盖 bundle patch 的 config，",
+      "  // Runtime safety net: in DSH 0.1.1+ a profile patch config replaces the bundle patch config wholesale,"
+    ],
+    [
+      "  // 用户的 `- id: web` patch（如只设 fetchProvider）会静默抹掉 searchProvider，导致回退 DeepSeek 官方搜索。",
+      "  // so a user's `- id: web` patch (for example setting only fetchProvider) silently drops searchProvider and search falls back to DeepSeek official."
+    ],
+    [
+      "  // 这里在 provider 注册后检查：未指向任何 provider（undefined）时自动接管为本插件；",
+      "  // After registering the provider we check: when nothing points at a provider (undefined) this plugin takes over;"
+    ],
+    [
+      "  // 用户显式配置了其他 provider 则不动。",
+      "  // an explicitly configured provider is left untouched."
+    ],
+    [
+      "  // 测试工具：让 agent 逐个测试所有搜索引擎，报告可用性",
+      "  // Test tool: lets the agent test every search engine one by one and report availability"
+    ],
+    [
+      "      // 付费引擎无 key：直接透传失败结果",
+      "      // Paid engine without a key: pass the failure through as-is"
+    ],
+    [
+      "      // 免费引擎偶发反爬/空结果时重试一次",
+      "      // Free engines occasionally hit anti-bot or empty results: retry once"
+    ],
+    [
+      "              // 契约要求直接返回 ContentBlock[]：finalizeContent 在 tools/post-execute 之后才执行，",
+      "              // The contract requires returning ContentBlock[] directly: finalizeContent runs only after tools/post-execute,"
+    ],
+    [
+      "              // 只返回字符串会让该阶段的消费者（如 dsh-hooks-codex）拿到裸字符串崩溃。",
+      "              // so returning a bare string crashes consumers of that stage (e.g. dsh-hooks-codex)."
+    ],
+    [
+      "            // render 已直接返回 block 数组；这里仅作旧路径兼容兜底（幂等）",
+      "            // render already returns the block array; this is an idempotent fallback for the legacy path"
+    ],
+    [
+      "  // 平台搜索工具：GitHub / V2EX / Bilibili / Reddit（公开 API，零依赖）",
+      "  // Platform search tool: GitHub / V2EX / Bilibili / Reddit (public APIs, zero dependencies)"
+    ],
+    [
+      "            // 平台开关：settings 里禁用某平台时，工具明确告知",
+      "            // Platform toggles: when a platform is disabled in settings the tool says so explicitly"
+    ],
+    [
+      "            // lossless JSON 不允许 undefined 字段：剔除缺失字段",
+      "            // Lossless JSON forbids undefined fields: drop missing ones"
+    ],
+    [
+      "            // render 已直接返回 block 数组；这里保留为幂等兜底",
+      "            // render already returns the block array; kept here as an idempotent fallback"
+    ],
+    [
+      "  // 高级搜索工具：支持时间过滤（time_range）和指定引擎（engine）。",
+      "  // Advanced search tool: supports time filtering (time_range) and an explicit engine."
+    ],
+    [
+      "  // 走与 web_search 相同的统一回退链，但允许 agent 显式请求\"最近 N 天\"的结果。",
+      "  // Uses the same unified fallback chain as web_search but lets the agent request \"last N days\" results explicitly."
+    ],
+    [
+      "            // engine 指定时：仅当该引擎可用才优先（仍走回退链，失败自动换引擎）",
+      "            // engine given: it is preferred only when available (still goes through the fallback chain and switches on failure)"
+    ],
+    [
+      "            // lossless JSON 不允许 undefined 字段：按存在的值构造对象，缺字段直接省略",
+      "            // Lossless JSON forbids undefined fields: build the object from present values and omit missing ones"
+    ],
+    [
+      "  // 让 agent 知道可用搜索引擎（动态生成，随 key/设置变化）",
+      "  // Tells the agent which search engines are available (generated dynamically as keys/settings change)"
+    ],
+    [
+      "      // 插件页 page 模式：页面自带标题，卡片固定展开、表头不可折叠",
+      "      // Plugin-page \"page\" mode: the page brings its own title, so the card stays expanded and the header is not collapsible"
+    ],
+    [
+      "      // 下拉选项列表配色锁死：不随皮肤变量变化（皮肤只影响 select 框体本身）",
+      "      // Dropdown option colors are pinned: they do not follow skin variables (a skin only affects the select box itself)"
+    ],
+    [
+      "      // color-scheme 让浏览器原生下拉按主题渲染；option 显式固定底色/文字色兜底",
+      "      // color-scheme makes the native dropdown render per theme; explicit option colors act as a fallback"
+    ],
+    [
+      "    // 当前插件版本（与 lib/index.js 的 PLUGIN_VERSION 保持一致）",
+      "    // Current plugin version (kept in sync with PLUGIN_VERSION in lib/index.js)"
+    ],
+    [
+      "      { id: \"searxng\", label: \"SearXNG · 元搜索\", badge: \"FREE\", link: \"https://github.com/searxng/searxng\" },",
+      "      { id: \"searxng\", label: \"SearXNG · Meta search\", badge: \"FREE\", link: \"https://github.com/searxng/searxng\" },"
+    ],
+    [
+      "    // 插件页行配置的摘要文案（bundle 页每行显示；不触发 bridge 读取）",
+      "    // Summary line for the plugin-page row config (shown per row on the bundle page; does not call the bridge)"
+    ],
+    [
+      "      // 检测应用主题深浅（读 body 的 --dsw-alias-bg-base 变量亮度），用于锁定原生下拉配色",
+      "      // Detect the app theme (luminance of body's --dsw-alias-bg-base) to pin the native dropdown colors"
+    ],
+    [
+      "      // 插件页（0.1.6-alpha.2+ 的 plugins.row.config）以 page 模式复用本卡片：",
+      "      // The plugin page (plugins.row.config in 0.1.6-alpha.2+) reuses this card in page mode:"
+    ],
+    [
+      "      // 页面自带标题/面包屑，卡片固定展开、表头不再可折叠。",
+      "      // the page supplies its own title/breadcrumb, so the card stays expanded and the header is no longer collapsible."
+    ],
+    [
+      "      // key 存储位置：credentials（凭据中心，默认）| settings（设置页，兼容旧行为）",
+      "      // Key storage: credentials (credential center, default) | settings (settings page, legacy behavior)"
+    ],
+    [
+      "      // 凭据中心里已配置的 key（describe 不返回，需单独查）",
+      "      // Keys already configured in the credential center (describe does not return them; queried separately)"
+    ],
+    [
+      "      // 保存失败明细（credentials-set / mutate 的 code+message），成功或改表单时清空",
+      "      // Save failure detail (code+message from credentials-set / mutate); cleared on success or on form edits"
+    ],
+    [
+      "              // secrets 字段标记哪些 key 已配置（值被脱敏，仅显示\"已配置\"）",
+      "              // The secrets field marks which keys are configured (values are redacted; the UI only shows \"configured\")"
+    ],
+    [
+      "              // key 存储位置（默认凭据中心）",
+      "              // Key storage (credential center by default)"
+    ],
+    [
+      "              // 查询凭据中心里各 key 的配置状态",
+      "              // Query the configured state of each key in the credential center"
+    ],
+    [
+      "          // key 存储分流：凭据中心（默认）走 credentials-set；设置页走 settings mutate（兼容）",
+      "          // Key storage routing: credentials (default) goes through credentials-set; settings goes through the settings mutate path (legacy)"
+    ],
+    [
+      "            // settings 模式：key 写入当前 profile 的插件条目 config（cordis.patch.yml）",
+      "            // settings mode: keys are written into the active profile's plugin entry config (cordis.patch.yml)"
+    ],
+    [
+      "      // 挂插件页 slot：侧栏 插件 → 已安装 → free-search → 行配置页。",
+      "      // Mount the plugin-page slot: sidebar Plugins → Installed → free-search → row config page."
+    ],
+    [
+      "      // rc.1 废弃了旧版设置页的插件配置 slot，只保留 plugins.row.config；",
+      "      // rc.1 removed the legacy settings-page plugin config slot and keeps only plugins.row.config;"
+    ],
+    [
+      "      // key 规则见 ui-plugin-manager 的 rowConfigKey：<包名>#<patch 里声明的行 id>。",
+      "      // for the key rule see ui-plugin-manager's rowConfigKey: <package name>#<row id declared in the patch>."
+    ],
+    [
+      "      // 配置读写走自建 bridge（/api/dsh-free-search-settings），不依赖 dsh-web-ui。",
+      "      // Config reads/writes go through the plugin's own bridge (/api/dsh-free-search-settings), with no dsh-web-ui dependency."
+    ],
+    [
+      "      // /free-search-engine 弹出式命令：输入 \"/\" 选中后弹出引擎列表，点选即切换。",
+      "      // /free-search-engine popup command: type \"/\", pick it, and an engine list pops up - click to switch."
+    ],
+    [
+      "      // 等效于设置页切换引擎+保存；命令只改 provider 配置，搜索仍走回退链。",
+      "      // Equivalent to switching the engine and saving in the settings page; the command only changes the provider config, search still uses the fallback chain."
+    ],
+    [
+      "      // description 必须传函数：ui-commands 读回的是 contribution.description()，",
+      "      // description MUST be a function: ui-commands reads back contribution.description(),"
+    ],
+    [
+      "      // 传字符串会抛 TypeError: contribution.description is not a function；该异常",
+      "      // and passing a string throws TypeError: contribution.description is not a function; that exception"
+    ],
+    [
+      "      // 会让整份 \"/\" 候选列表一起失败，菜单空白、其他命令也一起点不到。",
+      "      // makes the whole \"/\" candidate list fail - an empty menu where no other command can be picked either."
+    ],
+    [
+      "            description: () => \"切换搜索引擎 / Switch web search engine\",",
+      "            description: () => \"Switch web search engine\","
+    ],
+    [
+      "                  label: `${e.label}${e.badge === \"FREE\" ? \" · 免费\" : \" · API Key\"}`,",
+      "                  label: `${e.label}${e.badge === \"FREE\" ? \" · FREE\" : \" · API Key\"}`,"
+    ],
+    [
+      "                  detail: e.id === current ? (view?.value?.lang === \"en\" ? \"current\" : \"当前\") : undefined,",
+      "                  detail: e.id === current ? \"current\" : undefined,"
+    ],
+    [
+      "const ACCEPT_LANG = \"zh-CN,zh;q=0.9,en;q=0.8\";",
+      "const ACCEPT_LANG = \"en-US,en;q=0.9\";"
+    ],
+    [
+      "  const profile = LANG_PROFILES[options?.lang] ?? LANG_PROFILES.zh;",
+      "  const profile = LANG_PROFILES[options?.lang] ?? LANG_PROFILES.en;"
+    ],
+    [
+      "  lang: z.string().default(\"zh\").volatile(),",
+      "  lang: z.string().default(\"en\").volatile(),"
+    ],
+    [
+      "    const tt = (lang) => I18N[lang === \"en\" ? \"en\" : \"zh\"];",
+      "    const tt = () => I18N.en;"
+    ],
+    [
+      "      const t = tt(lang);",
+      "      const t = tt();"
+    ],
+    [
+      "    throw new Error(`配置文件不存在: ${PATCH_FILE}`);",
+      "    throw new Error(`Config file not found: ${PATCH_FILE}`);"
+    ],
+    [
+      "    content += `\\n# ============================================================\\n# 搜索引擎 provider（由 dsh-free-search 切换工具写入）\\n# ============================================================\\n- id: web\\n  config:\\n    searchProvider: ${engine}\\n`;",
+      "    content += `\\n# ============================================================\\n# search engine provider (written by the dsh-free-search switcher)\\n# ============================================================\\n- id: web\\n  config:\\n    searchProvider: ${engine}\\n`;"
+    ],
+    [
+      "        res.end(JSON.stringify({ ok: false, error: `未知引擎: ${engine}` }));",
+      "        res.end(JSON.stringify({ ok: false, error: `Unknown engine: ${engine}` }));"
+    ],
+    [
+      "  console.log(`DSH 搜索引擎切换器已启动: http://127.0.0.1:${PORT}`);",
+      "  console.log(`DSH search engine switcher started: http://127.0.0.1:${PORT}`);"
+    ],
+    [
+      "  console.log(\"按 Ctrl+C 关闭\");",
+      "  console.log(\"Press Ctrl+C to stop\");"
+    ],
+    [
+      "<html lang=\"zh-CN\">",
+      "<html lang=\"en\">"
+    ],
+    [
+      "<title>DSH 搜索引擎切换器</title>",
+      "<title>DSH Search Engine Switcher</title>"
+    ],
+    [
+      "  <h1>🔍 DSH 搜索引擎切换器</h1>",
+      "  <h1>🔍 DSH Search Engine Switcher</h1>"
+    ],
+    [
+      "  <div class=\"subtitle\">dsh-free-search 插件 · 免费多引擎搜索配置</div>",
+      "  <div class=\"subtitle\">dsh-free-search plugin · free multi-engine search configuration</div>"
+    ],
+    [
+      "  <div class=\"current\" id=\"current\">正在读取当前配置…</div>",
+      "  <div class=\"current\" id=\"current\">Reading current configuration…</div>"
+    ],
+    [
+      "        <div class=\"engine-desc\">默认 · 区域可配 · 平衡</div>",
+      "        <div class=\"engine-desc\">Default · configurable region · balanced</div>"
+    ],
+    [
+      "      <span class=\"engine-badge\">免费</span>",
+      "      <span class=\"engine-badge\">free</span>"
+    ],
+    [
+      "        <div class=\"engine-desc\">轻量版 · 无区域</div>",
+      "        <div class=\"engine-desc\">Lite version · no region</div>"
+    ],
+    [
+      "        <div class=\"engine-desc\">中文市场优化 (zh-CN) · 结果质量好</div>",
+      "        <div class=\"engine-desc\">Chinese market (zh-CN) · good result quality</div>"
+    ],
+    [
+      "        <div class=\"engine-desc\">隐私友好 · 偏英文结果</div>",
+      "        <div class=\"engine-desc\">Privacy-friendly · English-leaning results</div>"
+    ],
+    [
+      "        <div class=\"engine-desc\">AI 搜索 · 需 EXA_API_KEY</div>",
+      "        <div class=\"engine-desc\">AI search · requires EXA_API_KEY</div>"
+    ],
+    [
+      "      <span class=\"engine-badge\">付费</span>",
+      "      <span class=\"engine-badge\">paid</span>"
+    ],
+    [
+      "        <div class=\"engine-desc\">AI 搜索 · 需 PERPLEXITY_API_KEY</div>",
+      "        <div class=\"engine-desc\">AI search · requires PERPLEXITY_API_KEY</div>"
+    ],
+    [
+      "  <button class=\"btn\" id=\"apply\" disabled>应用并写入配置</button>",
+      "  <button class=\"btn\" id=\"apply\" disabled>Apply and write configuration</button>"
+    ],
+    [
+      "  <div class=\"footer\">写入 <code>~/.dsh/profiles/web/cordis.patch.yml</code> · 改完需重启 <code>dsh web</code></div>",
+      "  <div class=\"footer\">Writes to <code>~/.dsh/profiles/web/cordis.patch.yml</code> · restart <code>dsh web</code> after switching</div>"
+    ],
+    [
+      "  mojeek: \"Mojeek\", exa: \"Exa\", perplexity: \"Perplexity\", \"deepseek-official\": \"DeepSeek 官方\"",
+      "  mojeek: \"Mojeek\", exa: \"Exa\", perplexity: \"Perplexity\", \"deepseek-official\": \"DeepSeek Official\""
+    ],
+    [
+      "      statusBox.textContent = '✅ 已切换到 ' + LABELS[engine] + '。请重启 dsh web 生效！';",
+      "      statusBox.textContent = '✅ Switched to ' + LABELS[engine] + '. Restart dsh web to apply!';"
+    ],
+    [
+      "// 读取当前配置",
+      "// Read the current configuration"
+    ],
+    [
+      "      document.getElementById('current').textContent = '当前: ' + name;",
+      "      document.getElementById('current').textContent = 'Current: ' + name;"
+    ],
+    [
+      "      document.getElementById('current').textContent = '当前: 未知';",
+      "      document.getElementById('current').textContent = 'Current: unknown';"
+    ],
+    [
+      "    document.getElementById('current').textContent = '当前: 未知';",
+      "    document.getElementById('current').textContent = 'Current: unknown';"
+    ],
+    [
+      "# dsh-free-search 引擎切换工具",
+      "# dsh-free-search engine switcher"
+    ],
+    [
+      "# 用法：右键\"以 PowerShell 运行\"，或双击运行（先检查执行策略）",
+      "# Usage: right-click \"Run with PowerShell\", or double-click it (check your execution policy first)"
+    ],
+    [
+      "    Write-Host \"ERROR: 找不到配置文件 $patchFile\" -ForegroundColor Red",
+      "    Write-Host \"ERROR: config file not found: $patchFile\" -ForegroundColor Red"
+    ],
+    [
+      "# 读取文件（UTF-8）",
+      "# Read the file (UTF-8)"
+    ],
+    [
+      "# 替换 searchProvider 行（支持 - id: web / config: / searchProvider: xxx 结构）",
+      "# Replace the searchProvider line (supports the \"- id: web / config: / searchProvider: xxx\" structure)"
+    ],
+    [
+      "    Write-Host \"已切换搜索引擎: $Engine\" -ForegroundColor Green",
+      "    Write-Host \"Search engine switched: $Engine\" -ForegroundColor Green"
+    ],
+    [
+      "    # 没有找到 web 条目，追加",
+      "    # No web entry found: append one"
+    ],
+    [
+      "# 搜索引擎 provider（由 dsh-free-search 切换工具写入）",
+      "# search engine provider (written by the dsh-free-search switcher)"
+    ],
+    [
+      "    Write-Host \"已追加搜索引擎配置: $Engine\" -ForegroundColor Green",
+      "    Write-Host \"Search engine config appended: $Engine\" -ForegroundColor Green"
+    ],
+    [
+      "# 写回（UTF-8 无 BOM）",
+      "# Write back (UTF-8 without BOM)"
+    ],
+    [
+      "Write-Host \"配置已更新！请重启 dsh web 生效：\" -ForegroundColor Yellow",
+      "Write-Host \"Configuration updated. Restart dsh web to apply:\" -ForegroundColor Yellow"
+    ],
+    [
+      "Write-Host \"  1. 关闭当前 dsh web 窗口\"",
+      "Write-Host \"  1. Close the current dsh web window\""
+    ],
+    [
+      "Write-Host \"  2. 重新运行: dsh web\"",
+      "Write-Host \"  2. Run: dsh web\""
+    ],
+    [
+      "title DSH 搜索引擎切换器",
+      "title DSH Search Engine Switcher"
+    ],
+    [
+      "echo 正在启动 DSH 搜索引擎切换器...",
+      "echo Starting the DSH search engine switcher..."
+    ],
+    [
+      "echo 浏览器将自动打开 http://127.0.0.1:4789",
+      "echo The browser will open http://127.0.0.1:4789 automatically"
+    ],
+    [
+      "echo 关闭此窗口即停止服务",
+      "echo Close this window to stop the server"
+    ]
+  ],
+  "removals": [
+    "      \".dshfs-langToggle{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:transparent;flex:none;padding:2px 8px;font-size:11px;border-radius:6px}\",\n",
+    "      zh: {\n        description: \"免费搜索 —— 无需 API key（Bing / DuckDuckGo / AnySearch / Exa / Tavily / Keenable / Firecrawl / Parallel）\",\n        unsaved: \"未保存\",\n        searchEngine: \"搜索引擎\",\n        visit: \"访问官网 →\",\n        getKey: \"获取 API Key →\",\n        engineHint: \"Bing 是最稳定的免费引擎。DuckDuckGo 在共享 IP 上可能限流。API KEY 引擎需在下方填写凭据。\",\n        apiKeys: \"API 密钥（可选）\",\n        anysearchPh: (c) => c ? \"AnySearch API 密钥（已配置）\" : \"AnySearch API 密钥（可选，不填免费匿名，填了提额）\",\n        exaPh: (c) => c ? \"Exa API 密钥（已配置）\" : \"Exa API 密钥（可选，不填也可免费使用）\",\n        tavilyPh: (c) => c ? \"Tavily API 密钥（已配置）\" : \"Tavily API 密钥（可选，不填也可免费使用）\",\n        keenablePh: (c) => c ? \"Keenable API 密钥（已配置）\" : \"Keenable API 密钥（可选，不填也可免费使用）\",\n        firecrawlPh: (c) => c ? \"Firecrawl API 密钥（已配置）\" : \"Firecrawl API 密钥（可选，不填也可免费使用）\",\n        parallelPh: (c) => c ? \"Parallel API 密钥（已配置）\" : \"Parallel API 密钥（可选，不填走 MCP 免 key）\",\n        perplexityPh: (c) => c ? \"Perplexity API 密钥（已配置）\" : \"Perplexity API 密钥（pplx-...）\",\n        deepseekPh: (c) => c ? \"DeepSeek API 密钥（已配置）\" : \"DeepSeek API 密钥（sk-...）\",\n        serpbasePh: (c) => c ? \"SerpBase API 密钥（已配置）\" : \"SerpBase API 密钥（serpbase.dev 获取）\",\n        keysHint: \"密钥读取优先级：.credentials.yaml 凭据中心 > 这里 > 环境变量。推荐把 key 写进凭据中心（与官方 LLM 一致，一处管理）。\",\n        keyStorage: \"Key 存储位置\",\n        keyStorageCred: \"凭据中心（推荐）\",\n        keyStorageSettings: \"设置页（兼容）\",\n        keyStorageCredHint: (c) => `保存后写入 ~/.dsh/.credentials.yaml（最高优先级）。当前已配置：${[\"anysearch\", \"exa\", \"tavily\", \"keenable\", \"firecrawl\", \"parallel\", \"perplexity\", \"serpbase\", \"deepseek\"].filter((k) => c[k]).map((k) => k.toUpperCase()).join(\", \") || \"无\"}`,\n        keyStorageSettingsHint: \"保存后写入当前 profile 的插件条目 config（cordis.patch.yml，优先级低于凭据中心）。\",\n        platformSearch: \"平台搜索（platform_search 工具）\",\n        platformHint: \"为 agent 的 platform_search 工具启用平台。禁用的平台会被跳过。\",\n        cacheTtl: \"结果缓存时长（分钟）\",\n        cacheTtlHint: \"0 关闭缓存，最长 5 分钟。缩短可加快时效，延长可防限流、省额度。\",\n        unavailable: \"设置不可用 —— free-search 桥接未暴露。\",\n        saveFailed: \"保存失败\",\n        saveFailedDetail: (d) => `保存失败：${d}`,\n        testing: \"测试中…\",\n        testEngine: \"测试引擎\",\n        useBing: \"恢复 Bing 默认\",\n        discard: \"撤销\",\n        saving: \"保存中…\",\n        save: \"保存\",\n        testOk: (r) => `✓ ${r.count} 条结果（引擎: ${r.engine}）${r.content ? ` — ${r.content}` : \"\"}${r.sample ? ` · 例如 \"${r.sample.slice(0, 40)}\"` : \"\"}`,\n        testFail: (e) => `✗ ${e}`,\n        toggleLang: \"EN\",\n        checkUpdate: \"检查更新\",\n        checkingUpdate: \"检查中…\",\n        updateAvailable: (c, l) => `发现新版本 v${l}（当前 v${c}）`,\n        updateLatest: (c) => `已是最新版本 v${c}`,\n        updateCheckFailed: \"检查更新失败（无法访问 npm registry）\",\n        updateView: \"查看 →\",\n        hasUpdate: \"有更新\",\n        upgrade: \"升级\",\n        upgrading: \"升级中…\",\n        upgradeLinkMode: \"（本地开发模式，升级请用 git pull）\",\n        upgradeDone: (l) => `升级到 v${l} 完成，重启 dsh 后生效`,\n        upgradeFailed: (m) => `升级失败：${m}`,\n        safeSearchLabel: \"安全搜索过滤 (adlt)\",\n        safeSearchOff: \"关闭 —— 引擎默认（不加参数）\",\n        safeSearchModerate: \"中等 —— Bing 默认\",\n        safeSearchStrict: \"严格\",\n        safeSearchHint: \"作用于 Bing（adlt）、DuckDuckGo HTML / Lite（adlt 等级）。如遇引擎自带过滤可在此调整。\",\n        bingMarketLabel: \"Bing 市场（本地化结果）\",\n        bingMarketHint: \"Bing 的 mkt + Accept-Language 跟随此设置。例如 ru-RU 会让西里尔查询返回俄语结果。\",\n        marketZhCN: \"zh-CN —— 中国大陆（默认）\",\n        marketZhTW: \"zh-TW —— 台湾\",\n        marketEnUS: \"en-US —— 美国\",\n        marketEnGB: \"en-GB —— 英国\",\n        marketRuRU: \"ru-RU —— 俄罗斯\",\n        marketJaJP: \"ja-JP —— 日本\",\n        marketDeDE: \"de-DE —— 德国\",\n        marketFrFR: \"fr-FR —— 法国\",\n        marketEsES: \"es-ES —— 西班牙\",\n        marketKoKR: \"ko-KR —— 韩国\",\n      },\n",
+    "        toggleLang: \"中文\",\n",
+    "      const [lang, setLang] = react.useState(\"zh\");\n",
+    "              setLang(v.lang === \"en\" ? \"en\" : \"zh\");\n",
+    "          ops.push({ op: \"set\", path: [\"lang\"], value: lang });\n",
+    "      const toggleLang = () => {\n        setLang((prev) => (prev === \"en\" ? \"zh\" : \"en\"));\n        setDirty(true);\n        setFailed(false);\n        setSaveError(\"\");\n      };\n\n",
+    "              react_jsx_runtime.jsx(\"button\", {\n                type: \"button\",\n                className: \"dshfs-btn dshfs-langToggle\",\n                onClick: (e) => {\n                  e.stopPropagation();\n                  toggleLang();\n                },\n                children: t.toggleLang,\n              }),\n"
+  ],
+  "blocks": [
+    {
+      "file": "lib/client.js",
+      "old": "      const primary = typeof navigator === \"undefined\" ? \"zh\" : String((navigator.languages && navigator.languages[0]) || navigator.language || \"zh\").toLowerCase();\n      return primary.startsWith(\"en\")\n        ? \"13 engines · time filtering · platform search · web_fetch\"\n        : \"13 个搜索引擎 · 时间筛选 · 平台搜索 · web_fetch\";",
+      "new": "      return \"13 engines · time filtering · platform search · web_fetch\";"
+    },
+    {
+      "file": "cordis.patch.yml",
+      "old": "# 自动接管默认搜索：让 harness 的 web_search 直接用本插件的 provider（内部含全部引擎）\n# 注意 patch 语义是\"整行替换 config\"（DSH 0.1.2+）：必须保留 fetchProvider，否则\n# web-fetch-http 会被另一层重新注册，与 base bundle 的注册造成 duplicate loader entry。",
+      "new": "# Automatically take over the default search: harness web_search then goes straight to this\n# plugin's provider (which contains every engine internally).\n# Note: patch semantics replace the whole config entry (DSH 0.1.2+), so fetchProvider must be\n# kept; otherwise web-fetch-http gets re-registered by another layer, producing a duplicate\n# loader entry next to the base bundle registration."
+    }
+  ]
+}

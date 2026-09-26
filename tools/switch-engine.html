@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DSH 搜索引擎切换器</title>
+<title>DSH Search Engine Switcher</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -79,71 +79,71 @@
 </head>
 <body>
 <div class="card">
-  <h1>🔍 DSH 搜索引擎切换器</h1>
-  <div class="subtitle">dsh-free-search 插件 · 免费多引擎搜索配置</div>
-  <div class="current" id="current">正在读取当前配置…</div>
+  <h1>🔍 DSH Search Engine Switcher</h1>
+  <div class="subtitle">dsh-free-search plugin · free multi-engine search configuration</div>
+  <div class="current" id="current">Reading current configuration…</div>
 
   <ul class="engine-list">
     <li><label data-engine="ddg">
       <input type="radio" name="engine" value="ddg">
       <div class="engine-info">
         <div class="engine-name">DuckDuckGo (html)</div>
-        <div class="engine-desc">默认 · 区域可配 · 平衡</div>
+        <div class="engine-desc">Default · configurable region · balanced</div>
       </div>
-      <span class="engine-badge">免费</span>
+      <span class="engine-badge">free</span>
     </label></li>
     <li><label data-engine="ddg-lite">
       <input type="radio" name="engine" value="ddg-lite">
       <div class="engine-info">
         <div class="engine-name">DuckDuckGo (lite)</div>
-        <div class="engine-desc">轻量版 · 无区域</div>
+        <div class="engine-desc">Lite version · no region</div>
       </div>
-      <span class="engine-badge">免费</span>
+      <span class="engine-badge">free</span>
     </label></li>
     <li><label data-engine="bing">
       <input type="radio" name="engine" value="bing">
       <div class="engine-info">
         <div class="engine-name">Bing</div>
-        <div class="engine-desc">中文市场优化 (zh-CN) · 结果质量好</div>
+        <div class="engine-desc">Chinese market (zh-CN) · good result quality</div>
       </div>
-      <span class="engine-badge">免费</span>
+      <span class="engine-badge">free</span>
     </label></li>
     <li><label data-engine="mojeek">
       <input type="radio" name="engine" value="mojeek">
       <div class="engine-info">
         <div class="engine-name">Mojeek</div>
-        <div class="engine-desc">隐私友好 · 偏英文结果</div>
+        <div class="engine-desc">Privacy-friendly · English-leaning results</div>
       </div>
-      <span class="engine-badge">免费</span>
+      <span class="engine-badge">free</span>
     </label></li>
     <li><label data-engine="exa">
       <input type="radio" name="engine" value="exa">
       <div class="engine-info">
         <div class="engine-name">Exa</div>
-        <div class="engine-desc">AI 搜索 · 需 EXA_API_KEY</div>
+        <div class="engine-desc">AI search · requires EXA_API_KEY</div>
       </div>
-      <span class="engine-badge">付费</span>
+      <span class="engine-badge">paid</span>
     </label></li>
     <li><label data-engine="perplexity">
       <input type="radio" name="engine" value="perplexity">
       <div class="engine-info">
         <div class="engine-name">Perplexity</div>
-        <div class="engine-desc">AI 搜索 · 需 PERPLEXITY_API_KEY</div>
+        <div class="engine-desc">AI search · requires PERPLEXITY_API_KEY</div>
       </div>
-      <span class="engine-badge">付费</span>
+      <span class="engine-badge">paid</span>
     </label></li>
   </ul>
 
-  <button class="btn" id="apply" disabled>应用并写入配置</button>
+  <button class="btn" id="apply" disabled>Apply and write configuration</button>
   <div class="status" id="status"></div>
-  <div class="footer">写入 <code>~/.dsh/profiles/web/cordis.patch.yml</code> · 改完需重启 <code>dsh web</code></div>
+  <div class="footer">Writes to <code>~/.dsh/profiles/web/cordis.patch.yml</code> · restart <code>dsh web</code> after switching</div>
 </div>
 
 <script>
 const ENGINES = { ddg: 1, "ddg-lite": 1, bing: 1, mojeek: 1, exa: 1, perplexity: 1 };
 const LABELS = {
   ddg: "DuckDuckGo (html)", "ddg-lite": "DuckDuckGo (lite)", bing: "Bing",
-  mojeek: "Mojeek", exa: "Exa", perplexity: "Perplexity", "deepseek-official": "DeepSeek 官方"
+  mojeek: "Mojeek", exa: "Exa", perplexity: "Perplexity", "deepseek-official": "DeepSeek Official"
 };
 
 let currentEngine = null;
@@ -172,7 +172,7 @@ applyBtn.addEventListener('click', async () => {
     const result = await res.json();
     if (result.ok) {
       statusBox.className = 'status ok';
-      statusBox.textContent = '✅ 已切换到 ' + LABELS[engine] + '。请重启 dsh web 生效！';
+      statusBox.textContent = '✅ Switched to ' + LABELS[engine] + '. Restart dsh web to apply!';
       currentEngine = engine;
       applyBtn.disabled = true;
     } else {
@@ -187,7 +187,7 @@ applyBtn.addEventListener('click', async () => {
   }
 });
 
-// 读取当前配置
+// Read the current configuration
 (async () => {
   try {
     const res = await fetch('/api/current');
@@ -195,15 +195,15 @@ applyBtn.addEventListener('click', async () => {
     if (cfg.ok && cfg.engine) {
       currentEngine = cfg.engine;
       const name = LABELS[cfg.engine] || cfg.engine;
-      document.getElementById('current').textContent = '当前: ' + name;
+      document.getElementById('current').textContent = 'Current: ' + name;
       const radio = document.querySelector(`input[name=engine][value="${cfg.engine}"]`);
       if (radio) { radio.checked = true; }
       applyBtn.disabled = true;
     } else {
-      document.getElementById('current').textContent = '当前: 未知';
+      document.getElementById('current').textContent = 'Current: unknown';
     }
   } catch {
-    document.getElementById('current').textContent = '当前: 未知';
+    document.getElementById('current').textContent = 'Current: unknown';
   }
 })();
 </script>
